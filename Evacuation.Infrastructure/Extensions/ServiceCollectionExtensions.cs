@@ -14,7 +14,8 @@ public static class ServiceCollectionExtensions
     {
         var connetionString = configuration.GetConnectionString("Evacuation");
         services.AddDbContext<EvacuationsDbContext>(option =>
-            option.UseSqlServer(connetionString));
+            option.UseSqlServer(connetionString)
+            .EnableSensitiveDataLogging());
 
         services.AddScoped<IEvacuationsRepository, EvacuationsRepository>();
         services.AddScoped<IVehiclesRepository, VehiclesRepository>();

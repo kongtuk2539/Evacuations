@@ -1,6 +1,6 @@
 ﻿namespace Evacuations.Application.Dtos.Evacuations.Responses;
 
-public class EvacuationPlanResponse
+public class EvacuationPlanResponseDto
 {
     public Guid ZoneId { get; set; }
     public Guid VehicleId { get; set; }

@@ -3,6 +3,7 @@ using Evacuations.Application.Dtos.Evacuations.Responses;
 using Evacuations.Application.Services.Evacuations;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.OpenApi.Writers;
 
 namespace Evacuations.API.Controllers;
 
@@ -19,15 +20,30 @@ public class EvacuationsController(IEvacuationsService evacuationsService) : Con
 
     [HttpPost]
     [Route("plan")]
-    public async Task<ActionResult<IEnumerable<EvacuationPlanResponse>>> GeneratePlans()
+    public async Task<ActionResult<IEnumerable<EvacuationPlanResponseDto>>> GeneratePlans()
     {
         return Ok(await evacuationsService.GeneratePlanAsync());
     }
 
     [HttpGet]
     [Route("status")]
-    public async Task<ActionResult<IEnumerable<EvacuationStatusResponse>>> GetallStatuses()
+    public async Task<ActionResult<IEnumerable<EvacuationStatusResponseDto>>> GetallStatuses()
     {
         return Ok(await evacuationsService.GetAllStatusAsync());
+    }
+
+    [HttpPut]
+    [Route("update")]
+    public async Task<ActionResult<EvacuationStatusResponseDto>> UpdateStatus(EvacuationStatusRequestDto evacuationStatus)
+    {
+        return Ok(await evacuationsService.UpdateStatusAsync(evacuationStatus));
+    }
+
+    [HttpDelete]
+    [Route("clear")]
+    public async Task<IActionResult> ClearAll()
+    {
+        await evacuationsService.ClearAllAsync();
+        return NoContent();
     }
 }

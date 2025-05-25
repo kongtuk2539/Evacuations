@@ -7,7 +7,9 @@ public class EvacuationStatusesResponseProfile : Profile
 {
     public EvacuationStatusesResponseProfile()
     {
-        CreateMap<EvacuationStatusResponse, EvacuationStatus>();
-        CreateMap<EvacuationStatus, EvacuationStatusResponse>();
+        CreateMap<EvacuationStatusResponseDto, EvacuationStatus>();
+        CreateMap<EvacuationStatus, EvacuationStatusResponseDto>()
+            .ForMember(d => d.Status, opt => 
+            opt.MapFrom(src => src.Status.ToString()));
     }
 }
