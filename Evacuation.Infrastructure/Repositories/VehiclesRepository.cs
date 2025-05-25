@@ -22,4 +22,11 @@ internal class VehiclesRepository(EvacuationsDbContext dbContext) : IVehiclesRep
         await dbContext.SaveChangesAsync();
         return entity;
     }
+
+    public async Task DeleteVehiclesAsync()
+    {
+        await dbContext.Vehicles
+            .Where(v => !v.IsDeleted)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(p => p.IsDeleted, true));
+    }
 }

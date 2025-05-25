@@ -21,14 +21,29 @@ public static class CalculatorHelper
         return radianOfEarth * c;
     }
 
-    public static double ETAMinutes(double distance, double speedKmh)
+    public static string ETAMinutes(double distance, double speedKmh)
     {
+        var oneMinutes = 1;
         if (speedKmh <= 0)
             throw new ArgumentException("Speed must be greater than zero.");
 
         double timeHours = distance / speedKmh;
 
-        return Math.Round(timeHours);
+        var minutes = Math.Round(timeHours) <= 0 ? oneMinutes : Math.Round(timeHours);
+
+        return toHoursString(minutes);
+    }
+
+    private static string toHoursString(double minutes)
+    {
+        var minutesPerHours = 60;
+        var hours = (int)minutes / minutesPerHours;
+        return $"{addPrefixZero(hours)}:{addPrefixZero(minutes % minutesPerHours)} Minuite";
+    }
+
+    private static string addPrefixZero(double number)
+    {
+        return number <= 9 ? $"0{number}" : number.ToString();
     }
 
     private static double toRadian(double val)

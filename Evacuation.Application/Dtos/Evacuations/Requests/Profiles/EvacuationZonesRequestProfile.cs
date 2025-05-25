@@ -1,6 +1,4 @@
 ﻿using AutoMapper;
-using Evacuations.Application.Dtos.Common;
-using Evacuations.Application.Dtos.Evacuations.Requests;
 using Evacuations.Domain.Entities.Evacuations;
 
 namespace Evacuations.Application.Dtos.Evacuations.Requests.Profiles;

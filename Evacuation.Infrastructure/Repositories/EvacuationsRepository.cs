@@ -38,4 +38,25 @@ internal class EvacuationsRepository(EvacuationsDbContext dbContext) : IEvacuati
             .ToListAsync();
         return evacuationStatuses;
     }
+
+    public async Task<EvacuationStatus?> GetStatusAsyn(Guid id)
+    {
+        var evacuationStatus = await dbContext.EvacuationStatuses
+            .FirstOrDefaultAsync(es => es.Id == id);
+        return evacuationStatus;
+    }
+
+    public async Task DeleteZonesAsync()
+    {
+        await dbContext.EvacuationStatuses
+            .Where(es => !es.IsDeleted)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(p => p.IsDeleted, true));
+    }
+
+    public async Task DeleteStatusesAsync()
+    {
+        await dbContext.EvacuationZones
+            .Where(ez => !ez.IsDeleted)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(p => p.IsDeleted, true));
+    }
 }
