@@ -8,9 +8,7 @@ using Evacuations.Domain.Entities.Evacuations;
 using Evacuations.Domain.Entities.Vehicles;
 using Evacuations.Domain.Exceptions;
 using Evacuations.Domain.Repositories;
-using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 
 namespace Evacuations.Application.Services.Evacuations;
 
@@ -222,5 +220,6 @@ public class EvacuationsService(ILogger<EvacuationsService> logger,
         await evacuationsRepository.DeleteZonesAsync();
         await evacuationsRepository.DeleteStatusesAsync();
         await vehiclesRepository.DeleteVehiclesAsync();
+        await cacheService.RemoveAsync(keyEvacuationStatusesRedis);
     }
 }
