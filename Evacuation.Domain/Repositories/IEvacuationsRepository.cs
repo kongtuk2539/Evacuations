@@ -5,6 +5,7 @@ namespace Evacuations.Domain.Repositories;
 public interface IEvacuationsRepository
 {
     Task<EvacuationZone> CreateAsync(EvacuationZone entity);
+    Task<EvacuationZone?> GetAsync(Guid id);
     Task<List<EvacuationZone>> GetAllAsync();
     Task<IEnumerable<EvacuationStatus>> GetAllStatusesAsync();
     Task<EvacuationStatus?> GetStatusAsyn(Guid id);

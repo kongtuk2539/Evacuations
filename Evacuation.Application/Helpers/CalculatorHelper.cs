@@ -7,11 +7,11 @@ public static class CalculatorHelper
     private static readonly int radianOfEarth = 6371;
     public static double Haversine(LocationCoordinates location1, LocationCoordinates location2)
     {
-        double distanceLat = toRadian(location2.Latitude - location1.Latitude);
-        double distanceLon = toRadian(location2.Longitude - location2.Longitude);
+        double distanceLat = ToRadian(location2.Latitude - location1.Latitude);
+        double distanceLon = ToRadian(location2.Longitude - location2.Longitude);
 
-        double radianLat1 = toRadian(location1.Latitude);
-        double radianLat2 = toRadian(location2.Latitude);
+        double radianLat1 = ToRadian(location1.Latitude);
+        double radianLat2 = ToRadian(location2.Latitude);
 
         double calculate = Math.Pow(Math.Sin(distanceLat / 2), 2) +
                    Math.Pow(Math.Sin(distanceLon / 2), 2) *
@@ -31,23 +31,35 @@ public static class CalculatorHelper
 
         var minutes = Math.Round(timeHours) <= 0 ? oneMinutes : Math.Round(timeHours);
 
-        return toHoursString(minutes);
+        return ToHoursString(minutes);
     }
 
-    private static string toHoursString(double minutes)
+    public static int RemainOfPeople(int numberOfPeople, int capacity)
+    {
+        return numberOfPeople <= capacity ? 0 : numberOfPeople - capacity;
+    }
+
+    public static int EvacuatedPeople(int numberOfPeople, int capacity)
+    {
+        return numberOfPeople <= capacity ? numberOfPeople : capacity;
+    }
+
+    private static string ToHoursString(double minutes)
     {
         var minutesPerHours = 60;
         var hours = (int)minutes / minutesPerHours;
-        return $"{addPrefixZero(hours)}:{addPrefixZero(minutes % minutesPerHours)} Minuite";
+        return $"{AddPrefixZero(hours)}:{AddPrefixZero(minutes % minutesPerHours)} Minuite";
     }
 
-    private static string addPrefixZero(double number)
+    private static double ToRadian(double val)
+    {
+        return (Math.PI / 180) * val;
+    }
+
+    private static string AddPrefixZero(double number)
     {
         return number <= 9 ? $"0{number}" : number.ToString();
     }
 
-    private static double toRadian(double val)
-    {
-        return (Math.PI / 180) * val;
-    }
+
 }

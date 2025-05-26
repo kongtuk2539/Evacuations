@@ -10,6 +10,7 @@ internal class VehiclesRepository(EvacuationsDbContext dbContext) : IVehiclesRep
     public async Task<List<Vehicle>> GetAllAsync()
     {
         var vehicles = await dbContext.Vehicles
+            .Where(v => v.IsAvailable)
             .Where(v => !v.IsDeleted)
             .ToListAsync();
         return vehicles;

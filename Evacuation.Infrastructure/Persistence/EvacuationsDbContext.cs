@@ -17,9 +17,9 @@ internal class EvacuationsDbContext(DbContextOptions<EvacuationsDbContext> optio
 
         modelBuilder.Entity<EvacuationZone>()
             .HasMany(ez => ez.EvacuationStatus)
-            .WithOne()
+            .WithOne(ez => ez.EvacuationZone)
             .HasForeignKey(es => es.ZoneId)
-            .IsRequired();
+            .IsRequired(false);
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

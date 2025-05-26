@@ -6,8 +6,8 @@ namespace Evacuations.Application.Services.Evacuations;
 public interface IEvacuationsService
 {
     Task<EvacuationZoneResponseDto> CreateEvacuationZoneAsync(EvacuationZoneRequestDto evacuationZonesDto);
-    Task<IEnumerable<EvacuationPlanResponseDto>> GeneratePlanAsync();
     Task<IEnumerable<EvacuationStatusResponseDto>> GetAllStatusAsync();
+    Task<IEnumerable<EvacuationPlanResponseDto>> GeneratePlanAsync();
     Task<EvacuationStatusResponseDto> UpdateStatusAsync(EvacuationStatusRequestDto evacuationStatus);
     Task ClearAllAsync();
 }

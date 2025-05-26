@@ -1,9 +1,7 @@
 ﻿using Evacuations.Application.Dtos.Evacuations.Requests;
 using Evacuations.Application.Dtos.Evacuations.Responses;
 using Evacuations.Application.Services.Evacuations;
-using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.OpenApi.Writers;
 
 namespace Evacuations.API.Controllers;
 

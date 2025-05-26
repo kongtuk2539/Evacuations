@@ -6,14 +6,13 @@ namespace Evacuations.Application.Dtos.Evacuations.Validators;
 
 public class EvacuationStatusesValidator : AbstractValidator<EvacuationStatusRequestDto>
 {
-    private readonly List<string> statuses = 
-        [EnumStatus.PROGRESS.ToString(), EnumStatus.SUCCEED.ToString(), EnumStatus.CANCEL.ToString()];
+    private readonly List<string> statuses = GetEnumStatues.GetAll();
     public EvacuationStatusesValidator()
     {
         RuleFor(es => es.Status)
-            .NotEmpty()
-            .WithMessage("Status can not be Empty")
-            .Must(status => statuses.Contains(status!.ToUpper()))
+            .Must(status => Enum.IsDefined(typeof(EnumStatuses), status))
             .WithMessage($"Status only can be [{string.Join(", ", statuses)}]");
     }
+
+
 }

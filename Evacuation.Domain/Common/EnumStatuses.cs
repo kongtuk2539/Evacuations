@@ -1,8 +1,10 @@
 ﻿namespace Evacuations.Domain.Common;
 
-public enum EnumStatus
+public enum EnumStatuses
 {
     PROGRESS,
     SUCCEED,
     CANCEL
 }
+
+

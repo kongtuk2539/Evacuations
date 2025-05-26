@@ -8,8 +8,6 @@ public class EvacuationStatusesResponseProfile : Profile
     public EvacuationStatusesResponseProfile()
     {
         CreateMap<EvacuationStatusResponseDto, EvacuationStatus>();
-        CreateMap<EvacuationStatus, EvacuationStatusResponseDto>()
-            .ForMember(d => d.Status, opt => 
-            opt.MapFrom(src => src.Status.ToString()));
+        CreateMap<EvacuationStatus, EvacuationStatusResponseDto>();
     }
 }

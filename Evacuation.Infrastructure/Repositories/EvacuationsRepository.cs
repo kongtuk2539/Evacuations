@@ -15,6 +15,14 @@ internal class EvacuationsRepository(EvacuationsDbContext dbContext) : IEvacuati
         return evacuationZones;
     }
 
+    public async Task<EvacuationZone?> GetAsync(Guid id)
+    {
+        var evacuationZone = await dbContext.EvacuationZones
+            .Where(ez => !ez.IsDeleted)
+            .FirstOrDefaultAsync(ez => ez.Id == id);
+        return evacuationZone;
+    }
+
     public async Task<EvacuationZone> CreateAsync(EvacuationZone entity)
     {
         dbContext.EvacuationZones.Add(entity);
@@ -42,6 +50,7 @@ internal class EvacuationsRepository(EvacuationsDbContext dbContext) : IEvacuati
     public async Task<EvacuationStatus?> GetStatusAsyn(Guid id)
     {
         var evacuationStatus = await dbContext.EvacuationStatuses
+            .Where(ez => !ez.IsDeleted)
             .FirstOrDefaultAsync(es => es.Id == id);
         return evacuationStatus;
     }

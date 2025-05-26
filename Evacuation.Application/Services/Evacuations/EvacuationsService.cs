@@ -1,27 +1,63 @@
 ﻿using AutoMapper;
-using Evacuations.Application.Dtos.Common;
 using Evacuations.Application.Dtos.Evacuations.Requests;
 using Evacuations.Application.Dtos.Evacuations.Responses;
 using Evacuations.Application.Helpers;
+using Evacuations.Application.Services.Redis;
 using Evacuations.Domain.Common;
 using Evacuations.Domain.Entities.Evacuations;
 using Evacuations.Domain.Entities.Vehicles;
+using Evacuations.Domain.Exceptions;
 using Evacuations.Domain.Repositories;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 
 namespace Evacuations.Application.Services.Evacuations;
 
 public class EvacuationsService(ILogger<EvacuationsService> logger,
     IMapper mapper,
     IEvacuationsRepository evacuationsRepository,
-    IVehiclesRepository vehiclesRepository) : IEvacuationsService
+    IVehiclesRepository vehiclesRepository,
+    ICacheService<EvacuationStatusResponseDto> cacheService) : IEvacuationsService
 {
+    private readonly string keyEvacuationStatusesRedis = nameof(EvacuationStatus);
+    public async Task<EvacuationZoneResponseDto> CreateEvacuationZoneAsync(EvacuationZoneRequestDto evacuationZonesDto)
+    {
+        logger.LogInformation("Creating a new EvacuationZones {@EvacuationZones}", evacuationZonesDto);
+        var evacuationZone = mapper.Map<EvacuationZone>(evacuationZonesDto);
+        var result = await evacuationsRepository.CreateAsync(evacuationZone);
+        return mapper.Map<EvacuationZoneResponseDto>(result);
+    }
+
+    public async Task<IEnumerable<EvacuationStatusResponseDto>> GetAllStatusAsync()
+    {
+        logger.LogInformation("Getting all Evacuation Status");
+
+        if(await cacheService.IsExistsAsync(keyEvacuationStatusesRedis))
+        {
+            logger.LogInformation("Getting all Evacuation Status from Redis");
+            return await cacheService.GetAsync(keyEvacuationStatusesRedis);
+        }
+   
+        var evacuationStatuses = await evacuationsRepository.GetAllStatusesAsync();
+
+        if (!evacuationStatuses.Any())
+            throw new NotFoundException(nameof(EvacuationStatus));
+
+        var statusResponse = mapper.Map<IEnumerable<EvacuationStatusResponseDto>>(evacuationStatuses);
+
+        await cacheService.SaveAsync(keyEvacuationStatusesRedis, statusResponse);
+
+        return statusResponse;
+    }
+
     public async Task<IEnumerable<EvacuationPlanResponseDto>> GeneratePlanAsync()
     {
         logger.LogInformation("GeneratePlan is called");
         var evacuationZones = await evacuationsRepository.GetAllAsync();
 
-        if (!evacuationZones.Any()) throw new ArgumentException("No available evacuation zones");
+        if (!evacuationZones.Any())
+            throw new NotFoundException(nameof(EvacuationZone));
 
         evacuationZones = evacuationZones
             .Where(ez => ez.NumberOfPeople > 0)
@@ -36,29 +72,31 @@ public class EvacuationsService(ILogger<EvacuationsService> logger,
 
             if (vehicle is null) continue;
 
-            double distance = CalculatorHelper.Haversine(toLocation(zone.Latitude, zone.Longitude),
-                                                         toLocation(vehicle.Latitude, vehicle.Longitude));
+            double distance = CalculatorHelper.Haversine(AppHelper.ToLocation(zone.Latitude, zone.Longitude),
+                                                         AppHelper.ToLocation(vehicle.Latitude, vehicle.Longitude));
             var estimatedTimeOfArrival = CalculatorHelper.ETAMinutes(distance, vehicle.Speed);
 
-            var remainingPeople = ReduceNumberOfPeople(zone.NumberOfPeople, vehicle.Capacity);
+            var remainingPeople = CalculatorHelper.RemainOfPeople(zone.NumberOfPeople, vehicle.Capacity);
+            var totalEvacuated = CalculatorHelper.EvacuatedPeople(zone.NumberOfPeople, vehicle.Capacity);
 
             var plan = new EvacuationPlanResponseDto()
             {
                 ZoneId = zone.Id,
                 VehicleId = vehicle.Id,
                 ETA = $"{estimatedTimeOfArrival}",
-                NumberOfPeople = CalculatorRemainPeople(zone.NumberOfPeople, vehicle.Capacity)
+                NumberOfPeople = remainingPeople
             };
 
             evacuationPlans.Add(plan);
+
             logger.LogInformation("Generate Plans: {@EvacuationPlan}", plan);
 
             var status = new EvacuationStatusResponseDto()
             {
                 ZoneId = zone.Id,
-                TotalEvacuated = zone.NumberOfPeople,
+                TotalEvacuated = totalEvacuated,
                 RemainingPeople = remainingPeople,
-                Status = EnumStatus.PROGRESS.ToString(),
+                Status = EnumStatuses.PROGRESS,
             };
 
             evacuationStatuses.Add(status);
@@ -71,48 +109,17 @@ public class EvacuationsService(ILogger<EvacuationsService> logger,
         return evacuationPlans;
     }
 
-    public async Task<EvacuationZoneResponseDto> CreateEvacuationZoneAsync(EvacuationZoneRequestDto evacuationZonesDto)
-    {
-        logger.LogInformation("Creating a new EvacuationZones {@EvacuationZones}", evacuationZonesDto);
-        var evacuationZone = mapper.Map<EvacuationZone>(evacuationZonesDto);
-        var result = await evacuationsRepository.CreateAsync(evacuationZone);
-        return mapper.Map<EvacuationZoneResponseDto>(result);
-    }
-
-    public async Task<IEnumerable<EvacuationStatusResponseDto>> GetAllStatusAsync()
-    {
-        var result = await evacuationsRepository.GetAllStatusesAsync();
-        return mapper.Map<IEnumerable<EvacuationStatusResponseDto>>(result);
-    }
-
-    public async Task<EvacuationStatusResponseDto> UpdateStatusAsync(EvacuationStatusRequestDto evacuationStatus)
-    {
-        var entity = await evacuationsRepository.GetStatusAsyn(evacuationStatus.Id);
-        entity!.Status = Enum.Parse<EnumStatus>(evacuationStatus.Status!.ToUpper());
-        await evacuationsRepository.ChangesAsync();
-        return mapper.Map<EvacuationStatusResponseDto>(entity);
-    }
-
-    public async Task ClearAllAsync()
-    {
-        await evacuationsRepository.DeleteZonesAsync();
-        await evacuationsRepository.DeleteStatusesAsync();
-        await vehiclesRepository.DeleteVehiclesAsync();
-    }
     private async Task<Vehicle?> FindNearestVehicle(EvacuationZone zone)
     {
         logger.LogInformation("Find Vehicle to Zone: {@EvacuationZone}", zone);
         var vehicles = await vehiclesRepository.GetAllAsync();
-        
-        if (!vehicles.Any()) throw new ArgumentException("No available vehicles");
 
-        var vehiclesIsAvailable = vehicles
+        if (!vehicles.Any()) throw new NotFoundException(nameof(Vehicle));
+
+        var nearestVehicle = vehicles
             .Where(v => v.IsAvailable)
-            .ToList();
-
-        var nearestVehicle = vehiclesIsAvailable
-            .OrderBy(o => CalculatorHelper.Haversine(toLocation(o.Latitude, o.Longitude),
-                                                     toLocation(zone.Latitude, zone.Longitude)))
+            .OrderBy(o => CalculatorHelper.Haversine(AppHelper.ToLocation(o.Latitude, o.Longitude),
+                                                     AppHelper.ToLocation(zone.Latitude, zone.Longitude)))
             .ThenByDescending(o => o.Capacity)
             .FirstOrDefault();
 
@@ -123,31 +130,97 @@ public class EvacuationsService(ILogger<EvacuationsService> logger,
         return nearestVehicle;
     }
 
-    private async Task GenerateStatusAsync(List<EvacuationStatusResponseDto> evacuationStatuses)
-    {
-        var entities = mapper.Map<List<EvacuationStatus>>(evacuationStatuses);
-        await evacuationsRepository.CreateStatusesAsync(entities);
-    }
-
-    private LocationCoordinates toLocation(double lat, double lon)
-    {
-        return new() { Latitude = lat, Longitude = lon };
-    }
-
     private void MarkVehicleAsUnavailable(Vehicle vehicle)
     {
         vehicle.IsAvailable = false;
     }
 
-    private int ReduceNumberOfPeople(int numberOfPeople, int capacity)
+    private async Task GenerateStatusAsync(List<EvacuationStatusResponseDto> evacuationStatuses)
     {
-        return numberOfPeople <= capacity ? 0 : numberOfPeople - capacity;
+        var entities = mapper.Map<List<EvacuationStatus>>(evacuationStatuses);
+        await evacuationsRepository.CreateStatusesAsync(entities);
+
+        await UpdateStatusToCaches();
     }
 
-    private int CalculatorRemainPeople(int numberOfPeople, int capacity)
+    private async Task UpdateStatusToCaches()
     {
-        return numberOfPeople <= capacity ? numberOfPeople : capacity;
+        await cacheService.RemoveAsync(keyEvacuationStatusesRedis);
+        var statuses = await evacuationsRepository.GetAllStatusesAsync();
+        await cacheService.SaveAsync(keyEvacuationStatusesRedis, mapper.Map<IEnumerable<EvacuationStatusResponseDto>>(statuses));
     }
 
-    
+    public async Task<EvacuationStatusResponseDto> UpdateStatusAsync(EvacuationStatusRequestDto evacuationStatus)
+    {
+        logger.LogInformation("Updating Evacuation Status with id: {Id} with status: {Status}", evacuationStatus.Id, evacuationStatus.Status.ToString());
+        var entity = await evacuationsRepository.GetStatusAsyn(evacuationStatus.Id);
+
+        if (entity is null)
+            throw new NotFoundException(nameof(EvacuationStatus), evacuationStatus.Id.ToString());
+
+        await ChangesStatus(entity, evacuationStatus.Status);
+
+        
+        await evacuationsRepository.ChangesAsync();
+        return mapper.Map<EvacuationStatusResponseDto>(entity);
+    }
+
+    private async Task ChangesStatus(EvacuationStatus entityStatus, EnumStatuses status)
+    {
+        var entityZone = await evacuationsRepository.GetAsync(entityStatus.ZoneId);
+
+        if (entityZone is null)
+            throw new NotFoundException(nameof(EvacuationZone), entityStatus.ZoneId.ToString());
+
+        switch (entityStatus.Status)
+        {
+            case EnumStatuses.PROGRESS:
+                CheckStatusProgress(entityZone, entityStatus, status);
+                break;
+            case EnumStatuses.SUCCEED:
+                CheckStatusSucceed(entityZone, entityStatus, status);
+                break;
+            case EnumStatuses.CANCEL:
+                CheckStatusCancel(entityZone, entityStatus, status);
+                break;
+        }
+
+        entityStatus.Status = status;
+    }
+
+    private void CheckStatusProgress(EvacuationZone entityZone, EvacuationStatus entityStatus, EnumStatuses status)
+    {
+        if (status == EnumStatuses.CANCEL)
+        {
+            entityZone.NumberOfPeople += entityStatus.TotalEvacuated;
+        }
+        return;
+    }
+
+    private void CheckStatusSucceed(EvacuationZone entityZone, EvacuationStatus entityStatus, EnumStatuses status)
+    {
+        if (status == EnumStatuses.CANCEL)
+        {
+            entityZone.NumberOfPeople += entityStatus.TotalEvacuated;
+        }
+        return;
+    }
+
+    private void CheckStatusCancel(EvacuationZone entityZone, EvacuationStatus entityStatus, EnumStatuses status)
+    {
+        if (status == EnumStatuses.SUCCEED || status == EnumStatuses.PROGRESS)
+        {
+            entityZone.NumberOfPeople -= entityStatus.TotalEvacuated;
+        }
+        return;
+    }
+
+    public async Task ClearAllAsync()
+    {
+        logger.LogWarning($"Clear all {typeof(EvacuationZone)}, {typeof(EvacuationStatus)}, {typeof(Vehicle)}");
+
+        await evacuationsRepository.DeleteZonesAsync();
+        await evacuationsRepository.DeleteStatusesAsync();
+        await vehiclesRepository.DeleteVehiclesAsync();
+    }
 }
