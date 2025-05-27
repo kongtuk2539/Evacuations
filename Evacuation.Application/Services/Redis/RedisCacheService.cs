@@ -7,7 +7,7 @@ namespace Evacuations.Application.Services.Redis;
 public class RedisCacheService(IDistributedCache cache) : ICacheService<EvacuationStatusResponseDto>
 {
     private readonly TimeSpan cacheExpiry = TimeSpan.FromMinutes(30);
-    private readonly TimeSpan resetTime = TimeSpan.FromMinutes(30);
+    private readonly TimeSpan resetTime = TimeSpan.FromMinutes(5);
 
     public async Task<bool> IsExistsAsync(string key)
     {

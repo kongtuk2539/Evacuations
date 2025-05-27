@@ -104,12 +104,15 @@ public class EvacuationsService(ILogger<EvacuationsService> logger,
         }
 
         await GenerateStatusAsync(evacuationStatuses);
+        if (!evacuationPlans.Any())
+            throw new NotFoundException(nameof(EvacuationZone));
+
         return evacuationPlans;
     }
 
     private async Task<Vehicle?> FindNearestVehicle(EvacuationZone zone)
     {
-        logger.LogInformation("Find Vehicle to Zone: {@EvacuationZone}", zone);
+        logger.LogInformation("Looking for Vehicle to Zone: {@EvacuationZone}", zone);
         var vehicles = await vehiclesRepository.GetAllAsync();
 
         if (!vehicles.Any()) throw new NotFoundException(nameof(Vehicle));
@@ -122,6 +125,7 @@ public class EvacuationsService(ILogger<EvacuationsService> logger,
             .FirstOrDefault();
 
         if (nearestVehicle is null) return null;
+        logger.LogInformation("Vehicle: {@Vehicle} assignmented, to Zone: {@EvacuationZone}", nearestVehicle, zone);
 
         MarkVehicleAsUnavailable(nearestVehicle);
 
@@ -141,13 +145,6 @@ public class EvacuationsService(ILogger<EvacuationsService> logger,
         await UpdateStatusToCaches();
     }
 
-    private async Task UpdateStatusToCaches()
-    {
-        await cacheService.RemoveAsync(keyEvacuationStatusesRedis);
-        var statuses = await evacuationsRepository.GetAllStatusesAsync();
-        await cacheService.SaveAsync(keyEvacuationStatusesRedis, mapper.Map<IEnumerable<EvacuationStatusResponseDto>>(statuses));
-    }
-
     public async Task<EvacuationStatusResponseDto> UpdateStatusAsync(EvacuationStatusRequestDto evacuationStatus)
     {
         logger.LogInformation("Updating Evacuation Status with id: {Id} with status: {Status}", evacuationStatus.Id, evacuationStatus.Status.ToString());
@@ -160,7 +157,15 @@ public class EvacuationsService(ILogger<EvacuationsService> logger,
 
         
         await evacuationsRepository.ChangesAsync();
+        await UpdateStatusToCaches();
         return mapper.Map<EvacuationStatusResponseDto>(entity);
+    }
+
+    private async Task UpdateStatusToCaches()
+    {
+        await cacheService.RemoveAsync(keyEvacuationStatusesRedis);
+        var statuses = await evacuationsRepository.GetAllStatusesAsync();
+        await cacheService.SaveAsync(keyEvacuationStatusesRedis, mapper.Map<IEnumerable<EvacuationStatusResponseDto>>(statuses));
     }
 
     private async Task ChangesStatus(EvacuationStatus entityStatus, EnumStatuses status)

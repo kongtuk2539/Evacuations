@@ -53,7 +53,7 @@ namespace Evacuations.Infrastructure.Migrations
 
                     b.HasIndex("ZoneId");
 
-                    b.ToTable("EvacuationStatuses");
+                    b.ToTable("EvacuationStatuses", (string)null);
                 });
 
             modelBuilder.Entity("Evacuations.Domain.Entities.Evacuations.EvacuationZone", b =>
@@ -85,7 +85,7 @@ namespace Evacuations.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("EvacuationZones");
+                    b.ToTable("EvacuationZones", (string)null);
                 });
 
             modelBuilder.Entity("Evacuations.Domain.Entities.Vehicles.Vehicle", b =>
@@ -123,7 +123,7 @@ namespace Evacuations.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Vehicles");
+                    b.ToTable("Vehicles", (string)null);
                 });
 
             modelBuilder.Entity("Evacuations.Domain.Entities.Evacuations.EvacuationStatus", b =>
